@@ -1,0 +1,70 @@
+#!/usr/bin/perl -w
+# Converts a CSV into an Excel sheet.
+# The first line is treated as a heading and marked as bold.
+# All cells get a border, the page format is set to landscape.
+# Any empty cells get a grey background.
+# Can be used to create excel files from vcf files.
+# Example: vgrep 'ORG:Acme Corp' | vcard2csv -e - | csv2xls acme.xls
+
+use strict;
+use 5.010;
+use utf8;
+use open IN => ':utf8';
+use Text::CSV;
+use Spreadsheet::WriteExcel;
+use Encode 'decode_utf8';
+
+my $outfilename = shift @ARGV // 'example.xls';
+my $size = 12;
+my $csv = new Text::CSV({binary => 1});
+
+my $workbook = Spreadsheet::WriteExcel->new($outfilename);
+my $worksheet   = $workbook->add_worksheet();
+$worksheet->set_landscape();
+my $date_format = $workbook->add_format(num_format => 'dd.mm.yyyy', border => 1, size => $size);
+my $standard    = $workbook->add_format(border => 1, size => $size);
+my $header      = $workbook->add_format(border => 1, bold => 1, size => $size);
+my $empty       = $workbook->add_format(border => 1, bg_color => 'gray');
+
+my $row = 0;
+my @counts;
+while (<>) {
+	chomp;
+	my $status = $csv->parse($_);
+	die $csv->error_diag() if not $status;
+	my @columns = $csv->fields();
+	my $col = 0;
+	for my $column (@columns) {
+		my $column_utf8 = decode_utf8($column);
+		$counts[$col] = length($column) 
+			if (not defined $counts[$col] or $counts[$col] < length($column_utf8));
+		if (not defined $column or $column eq '') {
+			$worksheet->write($row, $col, '', $empty);
+		} elsif ($column =~ /^(\d{2})\.(\d{2})\.(\d{4})$/) {
+			my $date = to_date($3, $2, $1);
+			$worksheet->write_date_time($row, $col, $date, $date_format);
+		} else {
+			$worksheet->write($row, $col, $column_utf8, $row == 0 ? $header : $standard);
+		}
+		$col++;
+	}
+	$row++;
+}
+my ($today_year, $today_month, $today_day) = (localtime)[5,4,3];
+$today_year += 1900;
+$today_month += 1;
+my $today = to_date($today_year, $today_month, $today_day);
+$worksheet->write($row, 0, $today, $standard);
+
+for (0..$#counts) {
+	# increase width
+	# +2 ist ein experimenteller Wert bei OOo3 und Schriftgröße 12
+	$worksheet->set_column($_, $_, $counts[$_] + 2);
+}
+
+sub to_date {
+	my ($year, $month, $day) = @_;
+	return sprintf "%4d-%02d-%02dT", $year, $month, $day;
+
+}
+

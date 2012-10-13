@@ -1,0 +1,35 @@
+#!/usr/bin/perl
+# Reads all address book entries from Akonadi and writes them out as a vcard
+# file to stdout.
+# Author: Thomas Bleher <ThomasBleher@gmx.de>
+# Copyright: GNU GPLv2 or later
+
+use strict;
+use v5.10.0;
+use DBI;
+use Data::Dumper;
+use Sys::Hostname;
+
+# == Variables to adjust ==
+# Path to akonadi mysql socket
+my $socket=$ENV{"HOME"}.'/.local/share/akonadi/socket-'.hostname().'/mysql.socket';
+# username for mysql connection
+my $user=$ENV{"USER"};
+# password for mysql connection
+my $password='';
+my $db='akonadi';
+
+my $dbh = DBI->connect("DBI:mysql:database=$db;mysql_socket=$socket",
+    "$user", "$password",
+    { PrintError => 0}) || die $DBI::errstr;
+
+my $i= 0;
+my $ary_ref = $dbh->selectall_arrayref("select data from parttable where name='PLD:RFC822'");
+
+for my $row (@$ary_ref) {
+	my $val = $row->[0];
+	$val =~ s/(?<=[\x0-\x7F])([\x80-\xFF])\r\n (?=[\x80-\xFF])/\r\n $1/gms;
+	next unless $val =~ /^BEGIN:VCARD/;
+	print $val;
+}
+

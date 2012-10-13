@@ -1,0 +1,47 @@
+#!/usr/bin/perl
+# convert a vcf file to a mutt aliases file
+binmode STDIN, ":encoding(UTF-8)";
+$convert_to_iso=0;
+
+use Encode;
+if (!$convert_to_iso) {
+	binmode STDOUT, ":encoding(UTF-8)";
+}
+
+$/ = undef;
+# read aliases file, so manually generated aliases are not repeated in the generated alias file
+open MUTT_ALIASES, "<", $ENV{'HOME'}.'/.mutt/aliases';
+my $manual_aliases = <MUTT_ALIASES>;
+close MUTT_ALIASES;
+
+$/ = "\r\n\r\n";
+if (not @ARGV) {
+	#$ARGV[0] = $ENV{'HOME'}."/.kde/share/apps/kabc/std.vcf";
+	$ARGV[0] = $ENV{'HOME'}."/.addressbook.vcf";
+}
+
+
+my %aliases = ();
+while (<>) {
+	$email = (/^EMAIL;TYPE=PREF:(.*)/m)[0] || (/^EMAIL:(.*)/m)[0];
+	$name = (/^FN:(.*)/m)[0];
+	$n = join ' ', ((/^N:([^;]*);([^;]*)/m)[1,0]);
+	next if ($email eq '' or $n eq '');
+	$name = $n if $name eq '';
+	$name =~ s/\s+$//;
+	$name = decode('utf8', $name);
+	$email =~ s/\r//;
+	next if ($manual_aliases =~ /<\Q$email\E>/i);
+	($alias = lc($name)) =~ s/\s/_/g;
+	while( exists $aliases{$alias} ) {
+		$alias =~ s/(\d*)$/$1 ne '' ? $1 + 1 : 2/e;
+	}
+	$aliases{$alias} = 1;
+	if ($convert_to_iso) {
+		print encode("iso-8859-1", sprintf "alias  %-30s %-30s <%s>\n", $alias, $name , $email);
+	} else {
+		printf "alias  %-30s %-30s <%s>\n", $alias, $name , $email;
+	}
+}
+
+__END__ of vcf2alias

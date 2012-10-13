@@ -1,0 +1,3 @@
+#!/bin/bash
+# move akonadi addressbook to ~/.addressbook.vcf
+akonadi-to-vcard > ~/.addressbook.vcf

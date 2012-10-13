@@ -1,0 +1,115 @@
+#!/usr/bin/perl -w
+# Converts a vcard file to a csv table.
+# Example usage: vgrep ORG:Eisbären | vcard2csv -e - | csv2xls
+# TODO The program is not internationalized yet
+
+use 5.010;
+use strict;
+use Text::vCard::Addressbook;
+use Text::CSV;
+use Data::Dumper;
+use Getopt::Std;
+my %options = ();
+getopts("ec:", \%options);
+
+# telephone country code for normalization of telephone numbers
+my $countryCode = "49";
+
+my $print_email = (defined $options{'e'} ? 1 : 0);
+my $searchcat = $options{'c'};
+
+my $source = @ARGV ? $ARGV[0] : $ENV{'HOME'}."/.addressbook.vcf";
+open SOURCE, "<".$source;
+my $source_text = join '', <SOURCE>;
+close SOURCE;
+
+my $address_book = Text::vCard::Addressbook->new({
+	'source_text' => $source_text,
+});
+
+# TODO: Allgemeine Funktion machen, dass man z.B. strasse_daheim angeben kann, und den entsprechenden String bekommt.
+my $csv = Text::CSV->new({binary => 1});
+$csv->combine("Vorname", "Nachname", "Straße", "PLZ", "Stadt", "Telefonnr", "Handynr", $print_email ? ("Email") : (), "Geburtstag");
+
+say $csv->string();
+my @data;
+foreach my $vcard ($address_book->vcards()) {
+	my ($vorname, $nachname, $gebtag, $strasse, $plz, $stadt, $telnr, $email, $handynr) = ('') x 9;
+	my $nodes = $vcard->get({
+			'node_type' => 'addresses',
+			'types' => 'home',
+		});
+	if (defined $nodes) {
+		$strasse = $nodes->[0]->street();
+		$plz = $nodes->[0]->post_code();
+		$stadt = $nodes->[0]->city();
+	}
+	$gebtag = $vcard->birthday();
+	if (defined $gebtag && $gebtag ne '') {
+		my ($byear, $bmonth, $bday) = ($gebtag =~ /^(\d{4})-(\d{2})-(\d{2})/);
+		$gebtag = sprintf "%02d.%02d.%04d", $bday, $bmonth, $byear;
+	}
+
+	$nodes = $vcard->get({
+			'node_type' => 'tel',
+			'types' => 'home',
+		});
+	if (defined $nodes) {
+		$telnr = normalizeTelNr($nodes->[0]->value());
+	}
+	$nodes = $vcard->get({
+			'node_type' => 'tel',
+			'types' => 'cell',
+		});
+	if (defined $nodes) {
+		$handynr = normalizeTelNr($nodes->[0]->value());
+	}
+	$nodes = $vcard->get({
+			'node_type' => 'moniker',
+		});
+	if (defined $nodes) {
+		NAMELOOP: for my $node (@$nodes) {
+			# es gibt oft zwei Namensfelder, und nur in einem sind die Namen richtig gesplittet
+			$vorname = $node->given();
+			$nachname = $node->family();
+			last NAMELOOP if ($vorname // '') ne '' and ($nachname // '') ne '';
+		}
+	}
+	$email = $vcard->email();
+	my %categories;
+	$nodes = $vcard->get({
+			'node_type' => 'CATEGORIES',
+		});
+	if (defined $nodes) {
+		%categories = map { $_ => 1 } split /\\,/, $nodes->[0]->value();
+	}
+	next if (defined $searchcat and not $categories{$searchcat});
+	push @data, {Vorname => $vorname, Nachname => $nachname, Strasse => $strasse, PLZ => $plz, Stadt => $stadt, Telefon => $telnr, Handy => $handynr, Email => $email, Geburtstag => $gebtag};
+}
+for my $adresse (sort { $a->{'Nachname'} cmp $b->{'Nachname'} || $a->{'Vorname'} cmp $b->{'Vorname'} } @data) {
+	$csv->combine($adresse->{'Vorname'}, $adresse->{'Nachname'}, $adresse->{'Strasse'}, 
+		$adresse->{'PLZ'}, $adresse->{'Stadt'}, $adresse->{'Telefon'}, $adresse->{'Handy'},
+		($print_email ? ($adresse->{'Email'}) : ()), $adresse->{'Geburtstag'});
+	say $csv->string();
+}
+
+
+sub normalizeTelNr {
+	my $tel = shift;
+	$tel =~ s/^\+$countryCode[- ]?/0/;
+	$tel =~ s/^00$countryCode[- ]?/0/;
+	$tel =~ s/^00/+/;
+	my $tmp = $tel;
+	my $countslash = ($tmp =~ tr,/,,);
+	my $countspace = ($tmp =~ tr, ,,);
+	#if( $countslash == 1 ) {
+		$tel =~ s,/,-,;
+	#}
+	if( $countspace == 1 ) {
+		$tel =~ s, ,-,;
+	}
+	# entferne vorlaeufig alle Leerzeichen; evt koennte man die Nummern auch gruppieren; aber das braucht mehr Platz
+	$tel =~ s, ,,g;
+	return $tel;
+}
+

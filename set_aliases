@@ -1,0 +1,2 @@
+#!/bin/bash
+./vcf2alias > aliases_generated

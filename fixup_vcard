@@ -1,0 +1,4 @@
+#!/usr/bin/perl -p -00
+# Fixes up any invalid UTF8 sequences created because of line splitting in vcf files
+s/(?<=[\x0-\x7F])([\x80-\xFF])\r\n (?=[\x80-\xFF])/\r\n $1/gms;
+

@@ -1,0 +1,3 @@
+#!/bin/bash
+# compare akonadi addressbook with the one stored in ~/.addressbook.vcf
+diff -u ~/.addressbook.vcf <(akonadi-to-vcard) | less

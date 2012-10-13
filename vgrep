@@ -1,0 +1,11 @@
+#!/usr/bin/perl -w -n
+# Grep through a .vcf file; display any matching entries
+BEGIN {
+	$/ = "\r\n\r\n";
+	$pattern = shift @ARGV;
+	@ARGV = ($ENV{'HOME'}.'/.addressbook.vcf') if !@ARGV;
+}
+
+s/\r\n //g;
+#print if /:.*?$pattern/;
+print if /$pattern/;

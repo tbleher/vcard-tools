@@ -1,0 +1,3 @@
+#!/bin/bash
+# compare the file aliases_generated with the new output from vcf2alias
+diff -u aliases_generated <(./vcf2alias) | less
