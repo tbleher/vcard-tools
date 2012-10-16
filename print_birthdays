@@ -1,0 +1,107 @@
+#!/usr/bin/perl -w
+# Reads out the next birthdays from a vcf file and prints them.
+# Copyright (C) 2010 Thomas Bleher
+# 
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+use 5.010;
+use strict;
+use Term::ANSIColor qw(:constants color);
+use Date::Calc qw(Delta_Days Today Add_Delta_Days Day_of_Week Day_of_Week_to_Text Language Decode_Language);
+
+# config options
+my $prev_delta =  -7;
+my $next_delta = +14;
+#my $vcard_file = $ENV{'HOME'}."/.kde/share/apps/kabc/std.vcf";
+my $vcard_file = $ENV{'HOME'}."/.addressbook.vcf";
+
+for my $arg (@ARGV) {
+	if( $arg =~ /^-\d+$/ ) {
+		$prev_delta = $arg;
+	} elsif( $arg =~ /^\d+$/ ) {
+		$next_delta = $arg;
+	} else {
+		die "Unknown argument $arg";
+	}
+}
+
+# colors
+my $color_default = BLACK;
+my $color_today = RED;
+my $color_tomorrow = GREEN;
+my $color_day_after_tomorrow = BLUE;
+Language(Decode_Language("Deutsch"));
+
+
+my ($year, $month, $day) = (localtime)[5,4,3];
+$year += 1900;
+$month++;
+
+my %bdays;
+$/ = "\r\n\r\n";
+open ADDRESS_BOOK, "<", $vcard_file or die "Could not open $vcard_file: $!"; 
+while (defined(my $item = <ADDRESS_BOOK>) ) {
+	my $name = undef;
+	if( $item =~ /^FN:(.*?)\r\n/m ) {
+		$name = $1;
+	} elsif( $item =~ /^NAME:(.*?)\r\n/m ) {
+		$name = $1;
+	} elsif( $item =~ /^N:(.+?);(.+?);/m ) {
+		$name = $2 . ' ' . $1;
+	}
+	if( !defined($name) ) {
+		die "Could not parse record $item";
+	}
+	next unless $item =~ /^BDAY:(\d{4})-(\d{2})-(\d{2})/m;
+	my ($byear, $bmonth, $bday) = ($1, $2, $3);
+	foreach my $testyear ($year-1..$year+1) {
+		my $delta = Delta_Days($year, $month, $day, $testyear, $bmonth, $bday);
+		if ($prev_delta <= $delta && $next_delta >= $delta) {
+			my $age = $testyear - $byear;
+			$bdays{$delta}{$name} = $age;
+			last;
+		}
+	}
+}
+close ADDRESS_BOOK;
+
+if (!keys %bdays) {
+	say "Keine Geburtstage in den nächsten $next_delta Tagen";
+	exit;
+}
+
+my @today = Today();
+print color('black'), color('on_white');
+say "===================================================";
+for my $days (sort { $a <=> $b } keys %bdays) {
+	my $when;
+	my $color = $color_default;
+	given ($days) {
+		when (0)      { $when = "wird HEUTE"; $color = $color_today;}
+		when (-1)     { $when = "wurde gestern"; }
+		when (-2)     { $when = "wurde vorgestern"; }
+		when (1)      { $when = "wird morgen"; $color = $color_tomorrow; }
+		when (2)      { $when = "wird übermorgen"; $color = $color_day_after_tomorrow;  }
+		when ($_ < 0) { $when = "wurde vor ".abs($_)." Tagen"; }
+		default       { $when = "wird in $_ Tagen"; }
+	}
+	my @date = Add_Delta_Days( @today, $days );
+	my $dow = Day_of_Week_to_Text(Day_of_Week(@date));
+	for my $name (sort keys %{$bdays{$days}}) {
+		say $color, "$name $when ($dow) $bdays{$days}{$name} Jahre alt";
+	}
+}
+say color('black'), "===================================================";
+print color('reset');
+
