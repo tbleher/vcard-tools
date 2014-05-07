@@ -1,11 +1,21 @@
 #!/usr/bin/perl -w -n
 # Grep through a .vcf file; display any matching entries
+use Getopt::Long;
 BEGIN {
 	$/ = "\r\n\r\n";
-	$pattern = shift @ARGV;
-	@ARGV = ($ENV{'HOME'}.'/.addressbook.vcf') if !@ARGV;
+	my $file = $ENV{'HOME'}.'/.addressbook.vcf';
+	$ignoreCase = 0;
+	my $result = GetOptions("file=s" => \$file,
+                                "ignore-case!" => \$ignoreCase);
+
+	$pattern = join '\\s+', @ARGV;
+	@ARGV = ($file);
 }
 
 s/\r\n //g;
 #print if /:.*?$pattern/;
-print if /$pattern/;
+if( $ignoreCase ) {
+	print if /$pattern/i;
+} else {
+	print if /$pattern/;
+}
