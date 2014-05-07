@@ -24,13 +24,17 @@ use Date::Calc qw(Delta_Days Today Add_Delta_Days Day_of_Week Day_of_Week_to_Tex
 my $prev_delta =  -7;
 my $next_delta = +14;
 #my $vcard_file = $ENV{'HOME'}."/.kde/share/apps/kabc/std.vcf";
-my $vcard_file = $ENV{'HOME'}."/.addressbook.vcf";
+my $vcard_file = "< ". $ENV{'HOME'}."/.addressbook.vcf";
 
 for my $arg (@ARGV) {
 	if( $arg =~ /^-\d+$/ ) {
 		$prev_delta = $arg;
-	} elsif( $arg =~ /^\d+$/ ) {
+	} elsif( $arg =~ /^\+?\d+$/ ) {
 		$next_delta = $arg;
+	} elsif(  $arg eq '-' ) {
+		$vcard_file = $arg;
+	} elsif( -e $arg ) {
+		$vcard_file = "< " . $arg;
 	} else {
 		die "Unknown argument $arg";
 	}
@@ -50,7 +54,7 @@ $month++;
 
 my %bdays;
 $/ = "\r\n\r\n";
-open ADDRESS_BOOK, "<", $vcard_file or die "Could not open $vcard_file: $!"; 
+open ADDRESS_BOOK, $vcard_file or die "Could not open $vcard_file: $!"; 
 while (defined(my $item = <ADDRESS_BOOK>) ) {
 	my $name = undef;
 	if( $item =~ /^FN:(.*?)\r\n/m ) {
