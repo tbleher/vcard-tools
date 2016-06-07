@@ -46,7 +46,18 @@ foreach my $vcard ($address_book->vcards()) {
 	}
 	$gebtag = $vcard->birthday();
 	if (defined $gebtag && $gebtag ne '') {
-		my ($byear, $bmonth, $bday) = ($gebtag =~ /^(\d{4})-(\d{2})-(\d{2})/);
+		my ($byear, $bmonth, $bday);
+		if( $gebtag =~ /^(\d{4})-(\d{2})-(\d{2})(?:T00:00:00Z?)?$/ ) {
+			$byear = $1;
+			$bmonth = $2;
+			$bday = $3;
+		} elsif( $gebtag =~ /^(\d{4})(\d{2})(\d{2})$/ ) {
+			$byear = $1;
+			$bmonth = $2;
+			$bday = $3;
+		} else {
+			print "Cannot parse birthday $gebtag.\n";
+		}
 		$gebtag = sprintf "%02d.%02d.%04d", $bday, $bmonth, $byear;
 	}
 

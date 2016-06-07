@@ -23,7 +23,7 @@ if (not @ARGV) {
 
 my %aliases = ();
 while (<>) {
-	$email = (/^EMAIL;TYPE=PREF:(.*)/m)[0] || (/^EMAIL:(.*)/m)[0];
+	$email = (/^EMAIL;TYPE=PREF(?:;PREF=1)?:(.*)/m)[0] || (/^EMAIL:(.*)/m)[0];
 	$name = (/^FN:(.*)/m)[0];
 	$n = join ' ', ((/^N:([^;]*);([^;]*)/m)[1,0]);
 	next if ($email eq '' or $n eq '');
