@@ -17,13 +17,20 @@ close MUTT_ALIASES;
 $/ = "\r\n\r\n";
 if (not @ARGV) {
 	#$ARGV[0] = $ENV{'HOME'}."/.kde/share/apps/kabc/std.vcf";
-	$ARGV[0] = $ENV{'HOME'}."/.addressbook.vcf";
+	#$ARGV[0] = $ENV{'HOME'}."/.addressbook.vcf";
+	$ARGV[0] = $ENV{'HOME'}."/.addressbook/kontakte.vcf";
 }
 
+my @entries;
+{
+	local $/;
+	my $input = <>;
+	@entries = split /(?<=END:VCARD)\r\n{1,2}(?=BEGIN:VCARD)/, $input;
+}
 
 my %aliases = ();
-while (<>) {
-	$email = (/^EMAIL;TYPE=PREF(?:;PREF=1)?:(.*)/m)[0] || (/^EMAIL:(.*)/m)[0];
+for (@entries) {
+	$email = (/^EMAIL;TYPE=PREF(?:;PREF=1)?:(.*)/m)[0] || (/^EMAIL;PREF=1:(.*)/m)[0]|| (/^EMAIL:(.*)/m)[0];
 	$name = (/^FN:(.*)/m)[0];
 	$n = join ' ', ((/^N:([^;]*);([^;]*)/m)[1,0]);
 	next if ($email eq '' or $n eq '');
