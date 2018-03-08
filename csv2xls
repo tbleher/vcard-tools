@@ -11,14 +11,14 @@ use 5.010;
 use utf8;
 use open IN => ':utf8';
 use Text::CSV;
-use Spreadsheet::WriteExcel;
+use Excel::Writer::XLSX;
 use Encode 'decode_utf8';
 
-my $outfilename = shift @ARGV // 'example.xls';
+my $outfilename = shift @ARGV // 'example.xlsx';
 my $size = 12;
 my $csv = new Text::CSV({binary => 1});
 
-my $workbook = Spreadsheet::WriteExcel->new($outfilename);
+my $workbook = Excel::Writer::XLSX->new($outfilename);
 my $worksheet   = $workbook->add_worksheet();
 $worksheet->set_landscape();
 my $date_format = $workbook->add_format(num_format => 'dd.mm.yyyy', border => 1, size => $size);
@@ -35,16 +35,19 @@ while (<>) {
 	my @columns = $csv->fields();
 	my $col = 0;
 	for my $column (@columns) {
-		my $column_utf8 = decode_utf8($column);
+		#my $column_utf8 = decode_utf8($column);
 		$counts[$col] = length($column) 
-			if (not defined $counts[$col] or $counts[$col] < length($column_utf8));
+			if (not defined $counts[$col] or $counts[$col] < length($column));
 		if (not defined $column or $column eq '') {
 			$worksheet->write($row, $col, '', $empty);
 		} elsif ($column =~ /^(\d{2})\.(\d{2})\.(\d{4})$/) {
 			my $date = to_date($3, $2, $1);
 			$worksheet->write_date_time($row, $col, $date, $date_format);
+		} elsif ($column =~ /^[+-]?0\d/) {
+			# preserve leading zeros, e.g. from phone numbers
+			$worksheet->write_string($row, $col, $column, $row == 0 ? $header : $standard);
 		} else {
-			$worksheet->write($row, $col, $column_utf8, $row == 0 ? $header : $standard);
+			$worksheet->write($row, $col, $column, $row == 0 ? $header : $standard);
 		}
 		$col++;
 	}
