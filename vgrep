@@ -1,21 +1,32 @@
-#!/usr/bin/perl -w -n
+#!/usr/bin/perl
 # Grep through a .vcf file; display any matching entries
+use strict;
+use warnings;
 use Getopt::Long;
-BEGIN {
-	$/ = "\r\n\r\n";
-	my $file = $ENV{'HOME'}.'/.addressbook.vcf';
-	$ignoreCase = 0;
-	my $result = GetOptions("file=s" => \$file,
-                                "ignore-case!" => \$ignoreCase);
 
-	$pattern = join '\\s+', @ARGV;
-	@ARGV = ($file);
+#my $file = $ENV{'HOME'}.'/.addressbook.vcf';
+my $file = $ENV{'HOME'}.'/.addressbook/kontakte.vcf';
+my $ignoreCase = 0;
+my $result = GetOptions("file=s" => \$file,
+			"ignore-case!" => \$ignoreCase);
+
+my $pattern = join '\\s+', @ARGV;
+@ARGV = ($file);
+
+my @entries;
+{
+	local $/;
+	my $input = <>;
+	@entries = split /(?<=END:VCARD)\r\n{1,2}(?=BEGIN:VCARD)/, $input;
 }
 
-s/\r\n //g;
-#print if /:.*?$pattern/;
-if( $ignoreCase ) {
-	print if /$pattern/i;
-} else {
-	print if /$pattern/;
+for (@entries) {
+	s/\r\n //g;
+	#print if /:.*?$pattern/;
+	if( $ignoreCase ) {
+		print "$_\r\n\r\n" if /$pattern/i;
+	} else {
+		print "$_\r\n\r\n" if /$pattern/;
+	}
 }
+
