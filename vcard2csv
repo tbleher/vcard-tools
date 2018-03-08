@@ -35,6 +35,7 @@ say $csv->string();
 my @data;
 foreach my $vcard ($address_book->vcards()) {
 	my ($vorname, $nachname, $gebtag, $strasse, $plz, $stadt, $telnr, $email, $handynr) = ('') x 9;
+	#print Dumper($vcard);
 	my $nodes = $vcard->get({
 			'node_type' => 'addresses',
 			'types' => 'home',
@@ -72,6 +73,12 @@ foreach my $vcard ($address_book->vcards()) {
 			'node_type' => 'tel',
 			'types' => 'cell',
 		});
+	if (!defined $nodes) {
+		$nodes = $vcard->get({
+				'node_type' => 'tel',
+				'types' => 'x-mobil',
+			});
+	}
 	if (defined $nodes) {
 		$handynr = normalizeTelNr($nodes->[0]->value());
 	}
@@ -85,6 +92,10 @@ foreach my $vcard ($address_book->vcards()) {
 			$nachname = $node->family();
 			last NAMELOOP if ($vorname // '') ne '' and ($nachname // '') ne '';
 		}
+	}
+	if (($vorname // '') eq '' and ($nachname // '') eq '') {
+		# split on first space; works for multi-part surnames (e.g. de Causmaeker), not so well for multi-part firstnames
+		($vorname, $nachname) = ($vcard->fullname() =~ /^(\S+)\s+(.*)/);
 	}
 	$email = $vcard->email();
 	my %categories;
