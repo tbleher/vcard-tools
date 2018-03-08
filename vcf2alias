@@ -30,10 +30,10 @@ my @entries;
 
 my %aliases = ();
 for (@entries) {
-	$email = (/^EMAIL;TYPE=PREF(?:;PREF=1)?:(.*)/m)[0] || (/^EMAIL;PREF=1:(.*)/m)[0]|| (/^EMAIL:(.*)/m)[0];
+	$email = (/^EMAIL;TYPE=(?:\w*\\,)?PREF(?:;PREF=1)?:(.*)/m)[0] || (/^EMAIL;PREF=1:(.*)/m)[0] || (/^EMAIL;TYPE=\w+:(.*)/m)[0] || (/^EMAIL:(.*)/m)[0];
 	$name = (/^FN:(.*)/m)[0];
 	$n = join ' ', ((/^N:([^;]*);([^;]*)/m)[1,0]);
-	next if ($email eq '' or $n eq '');
+	next if ($email eq '' or ($n eq '' and $name eq ''));
 	$name = $n if $name eq '';
 	$name =~ s/\s+$//;
 	$name = decode('utf8', $name);
